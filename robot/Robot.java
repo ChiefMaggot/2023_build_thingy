@@ -8,6 +8,7 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.DriverStation;
 
 //import edu.wpi.first.wpilibj.DigitalInput;
 
@@ -16,28 +17,34 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController; //Grabs things for Xbox controller, use this one if using Xbox controller
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
+
+import com.kauailabs.navx.frc.AHRS;
+import edu.wpi.first.wpilibj.SPI;
 
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
+
+import frc.robot.commands.BalancingCommand;
 import frc.robot.subsystems.IntakeSubsystem;
+import frc.robot.subsystems.BalanceSubsystem;
 //import com.revrobotics.SparkMaxLimitSwitch;
 
 public class Robot extends TimedRobot {
   private DifferentialDrive m_myRobot;
   private IntakeSubsystem m_intake;//Defines intake
+  private BalanceSubsystem m_drive;
   private XboxController m_controller;//Defines controller
-  private static final int leftFrontDeviceID = 5; 
-  private static final int rightFrontDeviceID = 6;
-  private static final int leftBackDeviceID = 3; 
-  private static final int rightBackDeviceID = 4;
-  private static final int armID = 1;
-  private static final int handID = 2;
+  private static final int armID = 6;
+  private static final int handID = 7;
   private CANSparkMax m_leftFrontMotor;
   private CANSparkMax m_rightFrontMotor;
   private CANSparkMax m_leftBackMotor;
   private CANSparkMax m_rightBackMotor;
   private CANSparkMax m_armMotor;
   private CANSparkMax m_handMotor;
+  private AHRS m_Ahrs;
+  private BalancingCommand m_balancing;
   
   DigitalInput m_switch;
 
@@ -45,7 +52,14 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotInit() {
-    
+    try {
+      /* Communicate w/navX-MXP via the MXP SPI Bus.                                     */
+      /* Alternatively:  I2C.Port.kMXP, SerialPort.Port.kMXP or SerialPort.Port.kUSB     */
+      /* See http://navx-mxp.kauailabs.com/guidance/selecting-an-interface/ for details. */
+      m_Ahrs = new AHRS(SPI.Port.kMXP); 
+  } catch (RuntimeException ex ) {
+      DriverStation.reportError("Error instantiating navX-MXP:  " + ex.getMessage(), true);
+  }
   /*
    * SPARK MAX controllers are intialized over CAN by constructing a CANSparkMax object
    * 
@@ -60,10 +74,6 @@ public class Robot extends TimedRobot {
    * these parameters to match your setup
    */
   
-    m_leftFrontMotor = new CANSparkMax(leftFrontDeviceID, MotorType.kBrushless);
-    m_rightFrontMotor = new CANSparkMax(rightFrontDeviceID, MotorType.kBrushless);
-    m_leftBackMotor = new CANSparkMax(leftBackDeviceID, MotorType.kBrushless);
-    m_rightBackMotor = new CANSparkMax(rightBackDeviceID, MotorType.kBrushless);
     m_armMotor = new CANSparkMax(armID, MotorType.kBrushless);
     m_handMotor = new CANSparkMax(handID, MotorType.kBrushless);
 
@@ -80,7 +90,16 @@ public class Robot extends TimedRobot {
 
     m_myRobot = new DifferentialDrive(m_motorsLeft, m_motorsRight);//sets motor groups for "myRobot"
     m_intake = new IntakeSubsystem();//Need this to run subsystem
+    m_balancing = new BalancingCommand();
     m_controller = new XboxController(0);//sets port for controller, used in driver station
+    m_drive = new BalanceSubsystem();
+
+  }
+
+  @Override
+  public void robotPeriodic(){
+
+    CommandScheduler.getInstance().schedule(m_balancing);
   }
 
   //Auto
@@ -130,15 +149,13 @@ public class Robot extends TimedRobot {
   //Driver controll
   @Override
   public void teleopPeriodic() {
-  if ((Math.abs(m_controller.getLeftY()) > 0.05) || (Math.abs(m_controller.getRightY()) > 0.05)){
-    m_myRobot.tankDrive(m_controller.getLeftY()*0.6, m_controller.getRightY()*0.6);//Grabs inputs for each motor from "myRobot", starts with the defined first one.
-  }
+  m_drive.drive(m_controller);
   m_intake.armControl(m_armMotor, m_controller, m_switch);
-    System.out.println(m_switch.get());
+    //System.out.println(m_switch.get());
     
     m_intake.handControl(m_handMotor, m_controller);
-
-    System.out.println("Hello");//Hi
+if(m_controller.getAButton()){}
+    //System.out.println("Hello");//Hi
 
   }
 }

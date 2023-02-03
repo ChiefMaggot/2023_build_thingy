@@ -12,10 +12,10 @@ public class IntakeSubsystem {
           Motor.setVoltage(0);//Does not move
         }
         else if (Controll.getLeftTriggerAxis() > 0) {//Checks for left trigger input
-          Motor.setVoltage(Controll.getLeftTriggerAxis()*-0.6);//Negative so it turns Left
+          Motor.setVoltage(Controll.getLeftTriggerAxis()*-1);//Negative so it turns Left
         }
         else if (Controll.getRightTriggerAxis() > 0){//Checks for right trigger input
-          Motor.setVoltage(Controll.getRightTriggerAxis()*0.6);//Positive so it turns Right
+          Motor.setVoltage(Controll.getRightTriggerAxis()*1);//Positive so it turns Right
         }
         else {//Idle if no trigger input
           Motor.setVoltage(0);//Does not move
