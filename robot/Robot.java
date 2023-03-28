@@ -1,144 +1,112 @@
-/*----------------------------------------------------------------------------*/
-/* Copyright (c) 2017-2018 FIRST. All Rights Reserved.                        */
-/* Open Source Software - may be modified and shared by FRC teams. The code   */
-/* must be accompanied by the FIRST BSD license file in the root directory of */
-/* the project.                                                               */
-/*----------------------------------------------------------------------------*/
+// Copyright (c) FIRST and other WPILib contributors.
+// Open Source Software; you can modify and/or share it under the terms of
+// the WPILib BSD license file in the root directory of this project.
 
 package frc.robot;
 
-import edu.wpi.first.wpilibj.DigitalInput;
-
-//import edu.wpi.first.wpilibj.DigitalInput;
-
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.XboxController; //Grabs things for Xbox controller, use this one if using Xbox controller
-import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
-import com.revrobotics.CANSparkMax;
-import com.revrobotics.CANSparkMaxLowLevel.MotorType;
-import frc.robot.subsystems.IntakeSubsystem;
-//import com.revrobotics.SparkMaxLimitSwitch;
+import edu.wpi.first.cameraserver.CameraServer;//CAMERA!!
+import edu.wpi.first.cscore.UsbCamera;//End of Camera
 
+/**
+ * The VM is configured to automatically run this class, and to call the functions corresponding to
+ * each mode, as described in the TimedRobot documentation. If you change the name of this class or
+ * the package after creating this project, you must also update the build.gradle file in the
+ * project.
+ */
 public class Robot extends TimedRobot {
-  private DifferentialDrive m_myRobot;
-  private IntakeSubsystem m_intake;//Defines intake
-  private XboxController m_controller;//Defines controller
-  private static final int leftFrontDeviceID = 5; 
-  private static final int rightFrontDeviceID = 6;
-  private static final int leftBackDeviceID = 3; 
-  private static final int rightBackDeviceID = 4;
-  private static final int armID = 1;
-  private static final int handID = 2;
-  private CANSparkMax m_leftFrontMotor;
-  private CANSparkMax m_rightFrontMotor;
-  private CANSparkMax m_leftBackMotor;
-  private CANSparkMax m_rightBackMotor;
-  private CANSparkMax m_armMotor;
-  private CANSparkMax m_handMotor;
-  
-  DigitalInput m_switch;
+  private Command m_autonomousCommand;
+  private final Timer m_timer = new Timer();
+  private RobotContainer m_robotContainer;
 
-  private double startTime;
-
+  /**
+   * This function is run when the robot is first started up and should be used for any
+   * initialization code.
+   */
   @Override
   public void robotInit() {
-    
-  /*
-   * SPARK MAX controllers are intialized over CAN by constructing a CANSparkMax object
-   * 
-   * The CAN ID, which can be configured using the SPARK MAX Client, is passed as the
-   * first parameter
-   * 
-   * The motor type is passed as the second parameter. Motor type can either be:
-   *  com.revrobotics.CANSparkMaxLowLevel.MotorType.kBrushless
-   *  com.revrobotics.CANSparkMaxLowLevel.MotorType.kBrushed
-   * 
-   * The example below initializes four brushless motors with CAN IDs 1 and 2. Change
-   * these parameters to match your setup
-   */
-  
-    m_leftFrontMotor = new CANSparkMax(leftFrontDeviceID, MotorType.kBrushless);
-    m_rightFrontMotor = new CANSparkMax(rightFrontDeviceID, MotorType.kBrushless);
-    m_leftBackMotor = new CANSparkMax(leftBackDeviceID, MotorType.kBrushless);
-    m_rightBackMotor = new CANSparkMax(rightBackDeviceID, MotorType.kBrushless);
-    m_armMotor = new CANSparkMax(armID, MotorType.kBrushless);
-    m_handMotor = new CANSparkMax(handID, MotorType.kBrushless);
+    m_timer.reset();
+    UsbCamera m_camera = CameraServer.startAutomaticCapture();//turns on camera
+    m_camera.setResolution(160, 160);
+    m_camera.setFPS(30);
 
-    MotorControllerGroup m_motorsLeft = new MotorControllerGroup(m_leftFrontMotor, m_leftBackMotor);
-    MotorControllerGroup m_motorsRight = new MotorControllerGroup(m_rightFrontMotor, m_rightBackMotor);
-    m_switch = new DigitalInput(0);
-
-
-    /*
-     * The RestoreFactoryDefaults method can be used to reset the configuration parameters
-     * in the SPARK MAX to their factory default state. If no argument is passed, these
-     * parameters will not persist between power cycles
-     */
-
-    m_myRobot = new DifferentialDrive(m_motorsLeft, m_motorsRight);//sets motor groups for "myRobot"
-    m_intake = new IntakeSubsystem();//Need this to run subsystem
-    m_controller = new XboxController(0);//sets port for controller, used in driver station
+    // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
+    // autonomous chooser on the dashboard.
+    m_robotContainer = new RobotContainer();
   }
 
-  //Auto
+  /**
+   * This function is called every 20 ms, no matter the mode. Use this for items like diagnostics
+   * that you want ran during disabled, autonomous, teleoperated and test.
+   *
+   * <p>This runs after the mode specific periodic functions, but before LiveWindow and
+   * SmartDashboard integrated updating.
+   */
+  @Override
+  public void robotPeriodic() {
+    // Runs the Scheduler.  This is responsible for polling buttons, adding newly-scheduled
+    // commands, running already-scheduled commands, removing finished or interrupted commands,
+    // and running subsystem periodic() methods.  This must be called from the robot's periodic
+    // block in order for anything in the Command-based framework to work.
+    CommandScheduler.getInstance().run();
+  }
+
+  /** This function is called once each time the robot enters Disabled mode. */
+  @Override
+  public void disabledInit() {}
+
+  @Override
+  public void disabledPeriodic() {}
+
+  /** This autonomous runs the autonomous command selected by your {@link RobotContainer} class. */
   @Override
   public void autonomousInit() {
-    startTime = Timer.getFPGATimestamp();
+    m_autonomousCommand = m_robotContainer.getAutonomousCommand();
+
+    // schedule the autonomous command (example)
+    if (m_autonomousCommand != null) {
+      m_autonomousCommand.schedule();
+    }
   }
+
+  /** This function is called periodically during autonomous. */
+  @Override
+  public void autonomousPeriodic() {}
 
   @Override
-  public void autonomousPeriodic() {
-    double time = Timer.getFPGATimestamp();
-
-    if (time - startTime < 1) {//Durring auto
-    }
-    else if(time - startTime < 1.5) {//Durring auto
-      m_rightFrontMotor.setVoltage(2);//Move motor
-    }
-    else if(time - startTime < 2) {//Durring auto
-    }
-    else if(time - startTime < 2.5) {//Durring auto
-      m_rightFrontMotor.setVoltage(2);//Move motor
-    }
-    else if(time - startTime < 3) {//Durring auto
-    }
-    else if(time - startTime < 4) {//Durring auto
-      m_rightFrontMotor.setVoltage(2);//Move motor
-    }
-    else if(time - startTime < 5) {//Durring auto
-    }
-    else if(time - startTime < 5.5) {//Durring auto
-      m_rightFrontMotor.setVoltage(2);//Move motor
-    }
-    else if(time - startTime < 6) {//Durring auto
-    }
-    else if(time - startTime < 6.5) {//Durring auto
-      m_rightFrontMotor.setVoltage(2);//Move motor
-    }
-    else if(time - startTime < 7) {//Durring auto
-    }
-    else if(time - startTime < 8) {//Durring auto
-      m_rightFrontMotor.setVoltage(2);//Move motor
-    }
-    else if(time - startTime < 9) {//Durring auto
+  public void teleopInit() {
+    // This makes sure that the autonomous stops running when
+    // teleop starts running. If you want the autonomous to
+    // continue until interrupted by another command, remove
+    // this line or comment it out.
+    if (m_autonomousCommand != null) {
+      m_autonomousCommand.cancel();
     }
   }
-  
-  //Driver controll
+
+  /** This function is called periodically during operator control. */
   @Override
-  public void teleopPeriodic() {
-  if ((Math.abs(m_controller.getLeftY()) > 0.05) || (Math.abs(m_controller.getRightY()) > 0.05)){
-    m_myRobot.tankDrive(m_controller.getLeftY()*0.6, m_controller.getRightY()*0.6);//Grabs inputs for each motor from "myRobot", starts with the defined first one.
-  }
-  m_intake.armControl(m_armMotor, m_controller, m_switch);
-    System.out.println(m_switch.get());
-    
-    m_intake.handControl(m_handMotor, m_controller);
+  public void teleopPeriodic() {}
 
-    System.out.println("Hello");//Hi
-
+  @Override
+  public void testInit() {
+    // Cancels all running commands at the start of test mode.
+    CommandScheduler.getInstance().cancelAll();
   }
+
+  /** This function is called periodically during test mode. */
+  @Override
+  public void testPeriodic() {}
+
+  /** This function is called once when the robot is first started up. */
+  @Override
+  public void simulationInit() {}
+
+  /** This function is called periodically whilst in simulation. */
+  @Override
+  public void simulationPeriodic() {}
 }
