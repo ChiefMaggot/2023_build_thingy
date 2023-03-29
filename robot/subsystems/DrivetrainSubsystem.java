@@ -6,15 +6,19 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.math.MathUtil;
-
 import frc.robot.Constants;
 
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel;
+import com.revrobotics.RelativeEncoder;
+import com.revrobotics.SparkMaxRelativeEncoder;
 import com.revrobotics.CANSparkMax.IdleMode;
 
 import edu.wpi.first.util.sendable.SendableBuilder;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
 
 public class DrivetrainSubsystem extends SubsystemBase {
   private CANSparkMax m_frontLeftMotor;
@@ -22,18 +26,43 @@ public class DrivetrainSubsystem extends SubsystemBase {
   private CANSparkMax m_rearLeftMotor;
   private CANSparkMax m_rearRightMotor;
 
+  //If PID doesn't move correctly remove all of right, and remove L pieces of values
+  private double outputSpeedL;
+  private double errorL;
+  private double sensorPositionL;
+  private double outputSpeedR;
+  private double errorR;
+  private double sensorPositionR;
+
+  private RelativeEncoder m_frontLeftEncoder;
+  private RelativeEncoder m_frontRightEncoder;
+
   /** Creates a new DrivetrainSubsystem. */
   public DrivetrainSubsystem() {
     m_frontLeftMotor  = new CANSparkMax(Constants.Drivetrain.kFrontLeftCanId, CANSparkMaxLowLevel.MotorType.kBrushless);
     m_frontLeftMotor.setInverted(Constants.Drivetrain.kFrontLeftInverted);
     m_frontLeftMotor.setSmartCurrentLimit(Constants.Drivetrain.kCurrentLimit);
     m_frontLeftMotor.setIdleMode(IdleMode.kBrake);
+    //Hey, encoder and stuff
+    m_frontLeftEncoder = m_frontLeftMotor.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+    m_frontLeftEncoder.setPositionConversionFactor(Constants.Arm.kPositionFactor);
+    m_frontLeftEncoder.setVelocityConversionFactor(Constants.Arm.kVelocityFactor);
+
     m_frontLeftMotor.burnFlash();
 
     m_frontRightMotor = new CANSparkMax(Constants.Drivetrain.kFrontRightCanId, CANSparkMaxLowLevel.MotorType.kBrushless);
     m_frontRightMotor.setInverted(Constants.Drivetrain.kFrontRightInverted);
     m_frontRightMotor.setSmartCurrentLimit(Constants.Drivetrain.kCurrentLimit);
     m_frontRightMotor.setIdleMode(IdleMode.kBrake);
+    
+    m_frontRightEncoder = m_frontLeftMotor.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+    m_frontRightEncoder.setPositionConversionFactor(Constants.Arm.kPositionFactor);
+    m_frontRightEncoder.setVelocityConversionFactor(Constants.Arm.kVelocityFactor);
+    //Hey, encoder and stuff
+    m_frontRightEncoder = m_frontRightMotor.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+    m_frontRightEncoder.setPositionConversionFactor(Constants.Arm.kPositionFactor);
+    m_frontRightEncoder.setVelocityConversionFactor(Constants.Arm.kVelocityFactor);
+
     m_frontRightMotor.burnFlash();
 
     m_rearLeftMotor   = new CANSparkMax(Constants.Drivetrain.kRearLeftCanId, CANSparkMaxLowLevel.MotorType.kBrushless);
@@ -59,20 +88,15 @@ public class DrivetrainSubsystem extends SubsystemBase {
     m_rearRightMotor.set(right);
   }
 
-  public void brake(){
-    m_frontLeftMotor.stopMotor();
-    m_rearLeftMotor.stopMotor();
-    m_frontRightMotor.stopMotor();
-    m_rearRightMotor.stopMotor();
-  }
   public void tankDrive(double left, double right, XboxController Controller) {
-
+    //Slow the robot down when needed
     if (Controller.getRightBumperPressed()) {
       m_frontLeftMotor.set(left * 0.7);
       m_frontRightMotor.set(right * 0.7);
       m_rearLeftMotor.set(left * 0.7);
       m_rearRightMotor.set(right * 0.7);
     }
+    //Normal speed
     else {
       m_frontLeftMotor.set(left);
       m_frontRightMotor.set(right);
@@ -81,9 +105,77 @@ public class DrivetrainSubsystem extends SubsystemBase {
     }
   }
 
+  public void resetEncoders(){
+    m_frontLeftEncoder.setPosition(0);
+    m_frontRightEncoder.setPosition(0);
+  }
+
+  public double getEncoder(){
+    return m_frontLeftEncoder.getPosition();
+  }
+
+  public void DistancePID(double setpoint){
+    //Get encoder position Left
+    sensorPositionL = m_frontLeftEncoder.getPosition() * Constants.Drivetrain.kDistanceConversion;
+    
+    //Get encoder position Right
+    sensorPositionR = m_frontRightEncoder.getPosition() * Constants.Drivetrain.kDistanceConversion;
+
+    //Calculations Left
+    double currentL = (setpoint / 4) - m_frontLeftEncoder.getPosition();
+    errorL = currentL - sensorPositionL;
+    double dtL = Timer.getFPGATimestamp() - Constants.Drivetrain.lastTimeStampL;
+
+    if(Math.abs(errorL) < Constants.Drivetrain.ilimit){
+      Constants.Drivetrain.errorSumL += errorL*dtL;
+    }
+
+    double errorRateL = (errorL - Constants.Drivetrain.lastErrorL) / dtL;
+    outputSpeedL = Constants.Drivetrain.kP * errorL + Constants.Drivetrain.kI * Constants.Drivetrain.errorSumL + Constants.Drivetrain.kD * errorRateL;
+
+    //Calculations Right
+    double currentR = (setpoint / 4) - m_frontRightEncoder.getPosition();
+    errorL = currentR - sensorPositionR;
+    double dtR = Timer.getFPGATimestamp() - Constants.Drivetrain.lastTimeStampR;
+
+    if(Math.abs(errorR) < Constants.Drivetrain.ilimit){
+      Constants.Drivetrain.errorSumR += errorR*dtR;
+    }
+
+    double errorRateR = (errorR - Constants.Drivetrain.lastErrorR) / dtR;
+    outputSpeedR = Constants.Drivetrain.kP * errorR + Constants.Drivetrain.kI * Constants.Drivetrain.errorSumR + Constants.Drivetrain.kD * errorRateR;
+
+    //Output to motors
+    m_frontLeftMotor.set(outputSpeedL / 2);
+    m_frontRightMotor.set(outputSpeedR / 2);
+    m_rearLeftMotor.set(outputSpeedL / 2);
+    m_rearRightMotor.set(outputSpeedR / 2);
+
+    //Update variables
+    Constants.Drivetrain.lastTimeStampL = Timer.getFPGATimestamp();
+    Constants.Drivetrain.lastErrorL = errorL;
+
+    Constants.Drivetrain.lastTimeStampR = Timer.getFPGATimestamp();
+    Constants.Drivetrain.lastErrorR = errorR;
+
+  }
+
+  public boolean Done(double setpoint){
+    if (m_frontLeftEncoder.getPosition() == setpoint / 4 & m_frontRightEncoder.getPosition() == setpoint / 4){
+      return true;
+    } else{
+      return false;
+    }
+  }
+
+
   @Override
   public void periodic() {
     // This method will be called once per scheduler run
+    SmartDashboard.putNumber("Left Front Encoder", m_frontRightEncoder.getPosition() * Constants.Drivetrain.kDistanceConversion);
+    SmartDashboard.putNumber("Output", outputSpeedL);
+    SmartDashboard.putNumber("Error", errorL);
+
   }
 
   @Override

@@ -10,16 +10,23 @@ package frc.robot;
 import edu.wpi.first.wpilibj.Timer;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import frc.robot.subsystems.ArmSubsystem;
 import frc.robot.subsystems.DrivetrainSubsystem;
 import frc.robot.subsystems.GripperSubsystem;
+
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
+import edu.wpi.first.wpilibj2.command.ScheduleCommand;
+import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.commands.armFloorCMD;
+import frc.robot.commands.driveForwardCMD;
+import frc.robot.commands.gripperOpenCMD;
 
 
 /**
@@ -38,9 +45,10 @@ public class RobotContainer {
   private final ArmSubsystem m_arm = new ArmSubsystem();
   private final DrivetrainSubsystem m_drivetrain = new DrivetrainSubsystem();
   private final Timer m_timer = new Timer();
+  private final armFloorCMD m_armCMD = new armFloorCMD(m_arm, m_gripper);
 
   private XboxController m_driveController = new XboxController(Constants.OIConstants.kDriverController); 
-  private XboxController m_armController = new XboxController(1);
+  private XboxController m_armController = new XboxController(Constants.OIConstants.kArmController);
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -59,6 +67,9 @@ public class RobotContainer {
     //set up the drivetrain command that runs all the time
     m_drivetrain.setDefaultCommand(new RunCommand(
       () -> 
+          // m_drivetrain.driveArcade(
+          //   MathUtil.applyDeadband(m_driveController.getLeftY(), Constants.OIConstants.kDriveDeadband),
+          //   MathUtil.applyDeadband(m_driveController.getRightX(), Constants.OIConstants.kDriveDeadband))
         m_drivetrain.tankDrive(
           MathUtil.applyDeadband(m_driveController.getLeftY(), Constants.OIConstants.kDriveDeadband),
           MathUtil.applyDeadband(m_driveController.getRightY(), Constants.OIConstants.kDriveDeadband),
@@ -66,9 +77,18 @@ public class RobotContainer {
       , m_drivetrain)
     );
 
-    //set up gripper open/close
+    //Move the robot 5 feet, testing needed
+    new JoystickButton(m_driveController, XboxController.Button.kA.value)
+    .onTrue(new driveForwardCMD(m_drivetrain, 10));
+    // new JoystickButton(m_driveController, XboxController.Button.kX.value)
+    // .toggleOnTrue();
+    
+    //set up gripper open big/small/close
+    new JoystickButton(m_armController, XboxController.Button.kLeftBumper.value)
+    .onTrue(new InstantCommand(() -> m_gripper.openGripperFloor()))
+    .onFalse(new InstantCommand(() -> m_gripper.closeGripper()));
     new JoystickButton(m_armController, XboxController.Button.kRightBumper.value)
-      .onTrue(new InstantCommand(() -> m_gripper.openGripper()))
+      .onTrue(new InstantCommand(() -> m_gripper.openGripperSubstation()))
       .onFalse(new InstantCommand(() -> m_gripper.closeGripper()));
 
     //set up arm preset positions
@@ -77,7 +97,7 @@ public class RobotContainer {
     new JoystickButton(m_armController, XboxController.Button.kX.value)
       .onTrue(new InstantCommand(() -> m_arm.setTargetPosition(Constants.Arm.kScoringPosition, m_gripper)));
     new JoystickButton(m_armController, XboxController.Button.kY.value)
-      .onTrue(new InstantCommand(() -> m_arm.setTargetPosition(Constants.Arm.kIntakePosition, m_gripper)));
+      .toggleOnTrue(new armFloorCMD(m_arm, m_gripper));
     new JoystickButton(m_armController, XboxController.Button.kB.value)
       .onTrue(new InstantCommand(() -> m_arm.setTargetPosition(Constants.Arm.kFeederPosition, m_gripper)));
 
@@ -95,29 +115,88 @@ public class RobotContainer {
         , m_arm));
   }
 
+
   /**
    * Use this to pass the autonomous command to the main {@link Robot} class.
    *
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    m_timer.reset();
-    m_timer.start();
+    //return new armCMD(m_arm, m_gripper);
 
-    while (m_timer.get() < 0.05){
-      m_drivetrain.tankDrive(-1, -1, m_driveController);
-    }
-    while (m_timer.get() < 0.1 & m_timer.get() > 0.05){
-    }
-    while (m_timer.get() < 2.5 & m_timer.get() > 0.1){
-    m_drivetrain.tankDrive(0.3, 0.3, m_driveController);
-    }
-    while (m_timer.get() < 2.6 & m_timer.get() > 2.5){
-    }
-    // while (m_timer.get() < 2.55 & m_timer.get() > 1.7){
-    // m_drivetrain.tankDrive(0.25, -0.25, m_driveController);
+    // m_timer.reset();
+    // m_timer.start();
+    // double auto = 0;
+    // auto = NetworkTableInstance.getDefault().getTable("limelight").getEntry("tid").getDouble(0);
+    // //Grabs Apriltag number
+    
+    // //Red sides, move out of community and turn
+    // while (auto == 1 || auto == 3){//Test for arm movements
+    //   while (m_timer.get() < 1.5){
+    //     m_arm.setTargetPosition(Constants.Arm.kScoringPosition, m_gripper);
+    //     m_arm.runAutomatic();
+    //   }
+    //   while (m_timer.get() < 2 & m_timer.get() > 1.5){
+    //     m_gripper.openGripperFloor();
+    //   }
+    //   while (m_timer.get() < 2.5 & m_timer.get() > 2){
+    //     m_gripper.closeGripper();
+    //   }
+    //   while (m_timer.get() < 4 & m_timer.get() > 2.5){
+    //     m_arm.setTargetPosition(Constants.Arm.kHomePosition, m_gripper);
+    //     m_arm.runAutomatic();
+    //   }
+    //   while (m_timer.get() < 4.5 & m_timer.get() > 4){ //Wait
+    //   }
+    //   while (m_timer.get() < 8 & m_timer.get() > 4.5){
+    //     m_drivetrain.tankDrive(-0.3, -0.3, m_driveController);
+    //   }
+    //   while (m_timer.get() < 8.5 & m_timer.get() > 8){ //Wait
+    //   }
+    //   while (m_timer.get() < 9 & m_timer.get() > 8.5){
+    //     m_drivetrain.tankDrive(0.25, -0.25, m_driveController);
+    //   }
     // }
 
-    return null;
-  }
+    // //Blue sides, move out of community and turn
+    // while (auto == 6 || auto == 8){//Test for arm movements
+
+
+    // }
+
+    // //Red sides, move out of community and turn
+    // while (auto == 2 || auto == 5){//Test for arm movements
+    //   while (m_timer.get() < 1.5){
+    //     m_arm.setTargetPosition(Constants.Arm.kScoringPosition, m_gripper);
+    //     m_arm.runAutomatic();
+    //   }
+    //   while (m_timer.get() < 2 & m_timer.get() > 1.5){
+    //     m_gripper.openGripperFloor();
+    //   }
+    //   while (m_timer.get() < 2.5 & m_timer.get() > 2){
+    //     m_gripper.closeGripper();
+    //   }
+    //   while (m_timer.get() < 5 & m_timer.get() > 2.5){
+    //     m_arm.setTargetPosition(Constants.Arm.kHomePosition, m_gripper);
+    //     m_arm.runAutomatic();
+    //   }
+    //   while (m_timer.get() < 5.5 & m_timer.get() > 5){ //Wait
+    //   }
+    //   while (m_timer.get() < 8 & m_timer.get() > 5.5){
+    //     m_drivetrain.tankDrive(0.25, 0.25, m_driveController);
+    //   }
+    //   while (m_timer.get() < 8.5 & m_timer.get() > 8){ //Wait
+    //   }
+    //   while (m_timer.get() < 10 & m_timer.get() > 8.5){
+    //     m_drivetrain.tankDrive(-0.25, -0.25, m_driveController);
+    //   }
+    //   while (m_timer.get() < 10.5 & m_timer.get() > 10){ //Wait
+    //   }
+    // }
+
+    // while (auto <= 0){ //No tags should default to 0, might return to -1 after scanning an actual number.
+      
+      return null;
+    // }
+    }
 }

@@ -12,12 +12,14 @@ import com.revrobotics.CANSparkMaxLowLevel;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.SparkMaxPIDController;
 import com.revrobotics.SparkMaxRelativeEncoder;
+import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMax.SoftLimitDirection;
 
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class ArmSubsystem extends SubsystemBase {
   private CANSparkMax m_motor;
@@ -41,6 +43,7 @@ public class ArmSubsystem extends SubsystemBase {
     m_motor.enableSoftLimit(SoftLimitDirection.kReverse, true);
     m_motor.setSoftLimit(SoftLimitDirection.kForward, (float)Constants.Arm.kSoftLimitForward);
     m_motor.setSoftLimit(SoftLimitDirection.kReverse, (float)Constants.Arm.kSoftLimitReverse);
+    m_motor.setIdleMode(IdleMode.kCoast);
 
     m_encoder = m_motor.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
     m_encoder.setPositionConversionFactor(Constants.Arm.kPositionFactor);
@@ -51,7 +54,7 @@ public class ArmSubsystem extends SubsystemBase {
 
     m_motor.burnFlash();
 
-    m_setpoint = Constants.Arm.kHomePosition;
+    m_setpoint = Constants.Arm.kHomePosition;//0
 
     m_timer = new Timer();
     m_timer.start();
@@ -87,6 +90,10 @@ public class ArmSubsystem extends SubsystemBase {
     m_controller.setReference(targetState.position, CANSparkMax.ControlType.kPosition, 0, feedforward);
   }
 
+  public boolean isDoneMoving(){
+    return m_profile.isFinished(m_timer.get());
+  }
+
   public void runManual(double _power) {
     //reset and zero out a bunch of automatic mode stuff so exiting manual mode happens cleanly and passively
     m_setpoint = m_encoder.getPosition();
@@ -98,8 +105,13 @@ public class ArmSubsystem extends SubsystemBase {
     manualValue = _power;
   }
 
+  public double checkArmPosition(){
+    return m_encoder.getPosition();
+  }
+
   @Override
   public void periodic() { // This method will be called once per scheduler run
+    SmartDashboard.putNumber("Arm Encoder", m_encoder.getPosition());
     
   }
 

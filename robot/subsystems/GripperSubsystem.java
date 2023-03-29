@@ -14,9 +14,11 @@ import com.revrobotics.CANSparkMaxLowLevel;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.SparkMaxPIDController;
 import com.revrobotics.SparkMaxRelativeEncoder;
+import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMax.SoftLimitDirection;
 
 import edu.wpi.first.util.sendable.SendableBuilder;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class GripperSubsystem extends SubsystemBase {
   private CANSparkMax m_motor;
@@ -34,6 +36,7 @@ public class GripperSubsystem extends SubsystemBase {
     m_motor.enableSoftLimit(SoftLimitDirection.kReverse, true);
     m_motor.setSoftLimit(SoftLimitDirection.kForward, (float)Constants.Gripper.kSoftLimitForward);
     m_motor.setSoftLimit(SoftLimitDirection.kReverse, (float)Constants.Gripper.kSoftLimitReverse);
+    m_motor.setIdleMode(IdleMode.kCoast);
 
     m_encoder = m_motor.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
 
@@ -49,16 +52,25 @@ public class GripperSubsystem extends SubsystemBase {
     return m_encoder.getPosition() > Constants.Gripper.kSafePosition;
   }
 
-  public void openGripper() {
-    m_setpoint = Constants.Gripper.kOpenPosition;
+  public void openGripperSubstation() {
+    m_setpoint = Constants.Gripper.kSubstationPosition;
+  }
+
+  public void openGripperFloor() {
+    m_setpoint = Constants.Gripper.kFloorPosition;
   }
 
   public void closeGripper() {
     m_setpoint = Constants.Gripper.kClosePosition;
   }
 
+  public double position(){
+    return m_encoder.getPosition();
+  }
+
   @Override
   public void periodic() { // This method will be called once per scheduler run
+    SmartDashboard.putBoolean("Gripper Open", position() > 0);
     if (m_setpoint != m_prevSetpoint) {
       m_controller.setReference(m_setpoint, CANSparkMax.ControlType.kPosition);
     }

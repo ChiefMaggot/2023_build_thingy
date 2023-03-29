@@ -6,6 +6,7 @@ package frc.robot;
 
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.wpilibj.Timer;
 import frc.lib.PIDGains;
 import java.lang.Math;
 
@@ -20,6 +21,7 @@ import java.lang.Math;
 public final class Constants {
     public static final class OIConstants {
         public static final int kDriverController = 0;
+        public static final int kArmController = 1;
         public static final double kDriveDeadband = 0.05;
         public static final double kArmManualDeadband = 0.05;
         public static final double kArmManualScale = 0.5;
@@ -35,10 +37,26 @@ public final class Constants {
         public static final boolean kFrontRightInverted = true;
         public static final boolean kRearLeftInverted = false;
         public static final boolean kRearRightInverted = true;
+        
+        public static final PIDGains kDriveGains = new PIDGains(0.8, 0.0, 0.0);
 
-        public static final int kCurrentLimit = 55;
-
+        public static final int kCurrentLimit = 40; //Lower to 30 if motors pop the breaker again. Initial value was 55
         public static final double kTurningScale = 0.5;
+        public static final double kDistanceConstant = 6 * Math.PI / 42;
+        public static final int kStart = 0;
+
+        public static final double kDistanceConversion = 1 / 6 * Math.PI;
+        public static final double kP = 1.2;
+        public static final double kI = 0.5;
+        public static final double kD = 0.35;
+        public static double errorSumL = 0;
+        public static double errorSumR = 0;
+        public static double lastErrorL = 0;
+        public static double lastErrorR = 0;
+        public static final double ilimit = 1;
+        public static double lastTimeStampL = Timer.getFPGATimestamp();
+        public static double lastTimeStampR = Timer.getFPGATimestamp();
+        public static final double speedLimit = 3 / 7;
     }
 
     public static final class Arm {
@@ -62,6 +80,7 @@ public final class Constants {
         public static final double kScoringPosition = 3.25;
         public static final double kIntakePosition = 4.52;
         public static final double kFeederPosition = 2.95;
+        public static final double kVerticalPosition = 2.20;
     }
 
     public static final class Gripper {
@@ -69,7 +88,8 @@ public final class Constants {
         public static final double kSoftLimitReverse = -34.0;
         public static final double kSoftLimitForward = 5.0;
         public static final double kClosePosition = 0.0;
-        public static final double kOpenPosition = -22.0;
+        public static final double kSubstationPosition = -22.0;
+        public static final double kFloorPosition = -80.0;
         public static final double kSafePosition = -29.0;
         public static final int kCurrentLimit = 10;
         public static final PIDGains kPositionPIDGains = new PIDGains(0.2, 0.0, 0.0);
